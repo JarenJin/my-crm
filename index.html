@@ -42,51 +42,99 @@
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbznDosVxup1-obqV_I5mj1vAAMJBbjPZRPNvGIDl0ruGlPVdjDi6D7UQPgZxj7CRaoksA/exec"; // 👈 請替換成你的 Apps Script URL
 
-        // 1. 登入邏輯：將金鑰儲存在 SessionStorage
-        function saveKey() {
-            const key = document.getElementById('api-key').value;
-            if (key) {
-                sessionStorage.setItem('crm_api_key', key);
-                checkAuth();
+     // 1. 登入邏輯
+    function saveKey() {
+        const key = document.getElementById('api-key').value;
+        if (key) {
+            sessionStorage.setItem('crm_api_key', key);
+            checkAuth();
+        } else {
+            alert("請輸入金鑰");
+        }
+    }
+
+    // 2. 檢查權限狀態
+    function checkAuth() {
+        const key = sessionStorage.getItem('crm_api_key');
+        if (key) {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            fetchCustomers();
+        }
+    }
+
+    // 3. 讀取客戶資料 (READ)
+    async function fetchCustomers() {
+        const key = sessionStorage.getItem('crm_api_key');
+        const listContainer = document.getElementById('customer-list');
+        listContainer.innerHTML = '<tr><td colspan="5" class="p-4 text-center">資料載入中...</td></tr>';
+
+        try {
+            // 發送請求給 Apps Script
+            const response = await fetch(`${API_URL}?key=${key}`);
+            const result = await response.json();
+
+            if (result.status === "success") {
+                renderTable(result.data);
+            } else {
+                alert("驗證失敗：" + result.message);
+                logout();
             }
+        } catch (error) {
+            console.error("讀取失敗:", error);
+            listContainer.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">連線失敗，請檢查 API 網址或網路</td></tr>';
+        }
+    }
+
+    // 4. 將資料渲染至表格
+    function renderTable(data) {
+        const tbody = document.getElementById('customer-list');
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center">目前尚無資料，請在 Google Sheet 手動新增幾筆測試。</td></tr>`;
+            return;
         }
 
-        // 2. 檢查權限狀態
-        function checkAuth() {
-            const key = sessionStorage.getItem('crm_api_key');
-            if (key) {
-                document.getElementById('login-section').classList.add('hidden');
-                document.getElementById('main-content').classList.remove('hidden');
-                fetchCustomers();
-            }
-        }
+        tbody.innerHTML = data.map(cust => `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-medium">${cust.姓名 || ''}</td>
+                <td class="p-3 text-gray-600">${cust.公司 || ''}</td>
+                <td class="p-3">
+                    <span class="px-2 py-1 rounded-full text-xs ${getStageColor(cust.商機階段)}">
+                        ${cust.商機階段 || '未設定'}
+                    </span>
+                </td>
+                <td class="p-3 text-sm">${formatDate(cust.下次追蹤日期)}</td>
+                <td class="p-3">
+                    <button onclick="editCustomer('${cust.ID}')" class="text-blue-500 hover:underline">編輯</button>
+                </td>
+            </tr>
+        `).join('');
+    }
 
-        // 3. 讀取客戶資料 (READ)
-        async function fetchCustomers() {
-            const key = sessionStorage.getItem('crm_api_key');
-            try {
-                const response = await fetch(`${API_URL}?key=${key}`);
-                const result = await response.json();
-                if (result.status === "success") {
-                    renderTable(result.data); // 這邊之後要補齊後端回傳資料的邏輯
-                } else {
-                    alert("驗證失敗，請重新登入");
-                    sessionStorage.clear();
-                    location.reload();
-                }
-            } catch (error) {
-                console.error("讀取失敗:", error);
-            }
-        }
+    // 輔助函式：根據階段顯示不同顏色
+    function getStageColor(stage) {
+        const colors = {
+            '成交': 'bg-green-100 text-green-700',
+            '報價中': 'bg-blue-100 text-blue-700',
+            '失敗': 'bg-red-100 text-red-700',
+            '潛在名單': 'bg-gray-100 text-gray-700'
+        };
+        return colors[stage] || 'bg-yellow-100 text-yellow-700';
+    }
 
-        function renderTable(data) {
-            // 這裡會放置將資料轉為表格 HTML 的邏輯
-            const tbody = document.getElementById('customer-list');
-            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center">目前尚無資料，請點擊新增。</td></tr>`;
-        }
+    // 輔助函式：格式化日期
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        return isNaN(d) ? dateStr : d.toLocaleDateString();
+    }
 
-        // 頁面載入時檢查
-        window.onload = checkAuth;
+    function logout() {
+        sessionStorage.clear();
+        location.reload();
+    }
+
+    window.onload = checkAuth;
     </script>
 </body>
 </html>
