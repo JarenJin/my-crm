@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人 CRM 系統</title></head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+
+    <div id="login-section" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md mt-20">
+        <h2 class="text-2xl font-bold mb-4 text-center text-blue-600">CRM 系統登入</h2>
+        <input type="password" id="api-key" placeholder="請輸入 SECRET_API_KEY" class="w-full p-2 border rounded mb-4">
+        <button onclick="saveKey()" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">進入系統</button>
+    </div>
+
+    <div id="main-content" class="hidden max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">客戶商機追蹤</h1>
+            <button onclick="showAddModal()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">+ 新增客戶</button>
+        </header>
+
+        <div class="bg-white p-4 rounded shadow mb-6">
+            <input type="text" id="search-input" placeholder="搜尋姓名、公司或 Email..." class="w-full p-2 border rounded">
+        </div>
+
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="p-3">姓名</th>
+                        <th class="p-3">公司</th>
+                        <th class="p-3">商機階段</th>
+                        <th class="p-3">下次追蹤</th>
+                        <th class="p-3">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="customer-list">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbznDosVxup1-obqV_I5mj1vAAMJBbjPZRPNvGIDl0ruGlPVdjDi6D7UQPgZxj7CRaoksA/exec"; // 👈 請替換成你的 Apps Script URL
+
+        // 1. 登入邏輯：將金鑰儲存在 SessionStorage
+        function saveKey() {
+            const key = document.getElementById('api-key').value;
+            if (key) {
+                sessionStorage.setItem('crm_api_key', key);
+                checkAuth();
+            }
+        }
+
+        // 2. 檢查權限狀態
+        function checkAuth() {
+            const key = sessionStorage.getItem('crm_api_key');
+            if (key) {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                fetchCustomers();
+            }
+        }
+
+        // 3. 讀取客戶資料 (READ)
+        async function fetchCustomers() {
+            const key = sessionStorage.getItem('crm_api_key');
+            try {
+                const response = await fetch(`${API_URL}?key=${key}`);
+                const result = await response.json();
+                if (result.status === "success") {
+                    renderTable(result.data); // 這邊之後要補齊後端回傳資料的邏輯
+                } else {
+                    alert("驗證失敗，請重新登入");
+                    sessionStorage.clear();
+                    location.reload();
+                }
+            } catch (error) {
+                console.error("讀取失敗:", error);
+            }
+        }
+
+        function renderTable(data) {
+            // 這裡會放置將資料轉為表格 HTML 的邏輯
+            const tbody = document.getElementById('customer-list');
+            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center">目前尚無資料，請點擊新增。</td></tr>`;
+        }
+
+        // 頁面載入時檢查
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>
